@@ -11,6 +11,10 @@ keywords = ["embedded", "no-std", "dht11"]
 license = "MIT"
 repository = "https://github.com/wendell1002/esp32-dht11-rs"
 
+[lib]
+test = false
+bench = false
+
 [features]
 default = ["esp32c3"]
 esp32 = ["esp-hal/esp32"]
