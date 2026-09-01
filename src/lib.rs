@@ -22,9 +22,8 @@ pub struct DHT11<'a, D> {
     pub delay: D,
 }
 
-const ERROR_CHECKSUM: u8 = 254; // Error code indicating checksum mismatch.
-const ERROR_TIMEOUT: u8 = 253; // Error code indicating a timeout occurred during reading.
 const TIMEOUT_DURATION: u64 = 1000; // Duration (in milliseconds) to wait before timing out.
+const BIT_TIMEOUT_DURATION_US: u64 = 1000;
 impl<'a, D> DHT11<'a, D>
 where
     D: DelayNs,
@@ -79,11 +78,8 @@ where
         }
         self.delay.delay_us(80);
         let mut buf = [0; 5];
-        for idx in 0..5 {
-            buf[idx] = self.read_byte();
-            if buf[idx] == ERROR_TIMEOUT {
-                return Err(SensorError::Timeout);
-            }
+        for byte in &mut buf {
+            *byte = self.read_byte()?;
         }
         let sum = buf[0]
             .wrapping_add(buf[1])
@@ -96,17 +92,29 @@ where
             return Err(SensorError::ChecksumMismatch);
         }
     }
-    fn read_byte(&mut self) -> u8 {
+    fn read_byte(&mut self) -> Result<u8, SensorError> {
         let mut buf = 0u8;
         for idx in 0..8u8 {
-            while self.pin.is_low() {}
+            let wait_started = Instant::now();
+            while self.pin.is_low() {
+                if wait_started.elapsed().as_micros() >= BIT_TIMEOUT_DURATION_US {
+                    return Err(SensorError::Timeout);
+                }
+            }
+
             self.delay.delay_us(30);
             if self.pin.is_high() {
                 buf |= 1 << (7 - idx);
             }
-            while self.pin.is_high() {}
+
+            let wait_started = Instant::now();
+            while self.pin.is_high() {
+                if wait_started.elapsed().as_micros() >= BIT_TIMEOUT_DURATION_US {
+                    return Err(SensorError::Timeout);
+                }
+            }
         }
-        buf
+        Ok(buf)
     }
 }
 
