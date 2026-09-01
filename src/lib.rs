@@ -8,6 +8,8 @@ use esp_hal::time::Instant;
 pub enum SensorError {
     ChecksumMismatch,
     Timeout,
+    BitLowTimeout,
+    BitHighTimeout,
     PinError,
 }
 
@@ -98,7 +100,7 @@ where
             let wait_started = Instant::now();
             while self.pin.is_low() {
                 if wait_started.elapsed().as_micros() >= BIT_TIMEOUT_DURATION_US {
-                    return Err(SensorError::Timeout);
+                    return Err(SensorError::BitLowTimeout);
                 }
             }
 
@@ -110,7 +112,7 @@ where
             let wait_started = Instant::now();
             while self.pin.is_high() {
                 if wait_started.elapsed().as_micros() >= BIT_TIMEOUT_DURATION_US {
-                    return Err(SensorError::Timeout);
+                    return Err(SensorError::BitHighTimeout);
                 }
             }
         }
